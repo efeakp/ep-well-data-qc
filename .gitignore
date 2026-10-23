@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+
+# generated data and results (never commit field data)
+demo_data/
+demo_results/
+wellqc_results/
+data/
+*.segy
+*.sgy
+*.las
+*.LAS
+!tests/fixtures/*.las

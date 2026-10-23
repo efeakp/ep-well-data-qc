@@ -1,0 +1,35 @@
+step,action,well,curve,n_affected,params,timestamp
+discover,inventory files,,,20.0,,2026-10-23T09:14:44+00:00
+condition,depth match run,BETA 6,GR,8137.0,"shift=-2.438, corr=0.953, run=BETA 6_run2.las",2026-10-23T09:14:45+00:00
+condition,splice runs,BETA 6,,2.0,runs=BETA 6_run1.las|BETA 6_run2.las,2026-10-23T09:14:45+00:00
+read,load and reconcile files,,,7.0,,2026-10-23T09:14:45+00:00
+standardise,depth unit ft -> m,ALPHA-01,,,factor=0.3048,2026-10-23T09:14:45+00:00
+standardise,rename curves,ALPHA-01,,7.0,mapping=ILD->RDEEP; VSH_CED->VSH,2026-10-23T09:14:45+00:00
+standardise,depth unit ft -> m,ALPHA-02,,,factor=0.3048,2026-10-23T09:14:45+00:00
+standardise,rename curves,ALPHA-02,,7.0,mapping=ILD->RDEEP; VSH_CED->VSH,2026-10-23T09:14:45+00:00
+standardise,depth unit ft -> m,ALPHA-03,,,factor=0.3048,2026-10-23T09:14:45+00:00
+standardise,rename curves,ALPHA-03,,7.0,mapping=ILD->RDEEP; VSH_CED->VSH,2026-10-23T09:14:45+00:00
+standardise,depth unit ft -> m,ALPHA-04,,,factor=0.3048,2026-10-23T09:14:45+00:00
+standardise,rename curves,ALPHA-04,,6.0,mapping=ILD->RDEEP; VSH_CED->VSH,2026-10-23T09:14:45+00:00
+standardise,rename curves,BETA 5,,6.0,mapping=ILD->RDEEP,2026-10-23T09:14:45+00:00
+standardise,percent -> fraction,BETA 5,NPHI,18373.0,p99=51.47,2026-10-23T09:14:45+00:00
+standardise,rename curves,BETA 6,,6.0,mapping=ILD->RDEEP,2026-10-23T09:14:45+00:00
+standardise,percent -> fraction,BETA 6,NPHI,18241.0,p99=52.25,2026-10-23T09:14:45+00:00
+standardise,rename curves,BETA 7,,6.0,mapping=ILD->RDEEP,2026-10-23T09:14:45+00:00
+standardise,percent -> fraction,BETA 7,NPHI,17717.0,p99=51.39,2026-10-23T09:14:45+00:00
+standardise,merge duplicate wells,ALPHA-03,,2.0,"master_uwi=W0003, members=ALPHA-03|BETA 7",2026-10-23T09:14:45+00:00
+condition,null flat-line,ALPHA-01,GR,787.0,"top=1000.0488, base=1119.9876, value=77.94",2026-10-23T09:14:45+00:00
+condition,fix nulls,ALPHA-02,DT,25.0,,2026-10-23T09:14:45+00:00
+condition,physical limits,ALPHA-02,RHOB,4.0,"lo=1.2, hi=3.2",2026-10-23T09:14:45+00:00
+condition,despike,ALPHA-02,RHOB,37.0,min_abs=0.08,2026-10-23T09:14:45+00:00
+condition,despike,ALPHA-02,RDEEP,1.0,"log_scale=True, min_abs=0.4",2026-10-23T09:14:45+00:00
+condition,despike,ALPHA-04,RDEEP,2.0,"log_scale=True, min_abs=0.4",2026-10-23T09:14:45+00:00
+condition,despike,BETA 6,RDEEP,1.0,"log_scale=True, min_abs=0.4",2026-10-23T09:14:45+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",BETA 6,DTS,18241.0,,2026-10-23T09:14:51+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",BETA 5,DTS,18373.0,,2026-10-23T09:14:51+00:00
+predict,fill missing DT with ML prediction,ALPHA-04,DT,17061.0,features=GR|RHOB|NPHI|TVDSS,2026-10-23T09:14:51+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",ALPHA-04,DTS,17061.0,,2026-10-23T09:14:51+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",ALPHA-03,DTS,17717.0,,2026-10-23T09:14:51+00:00
+predict,fill missing DT with ML prediction,ALPHA-02,DT,25.0,features=GR|RHOB|NPHI|TVDSS,2026-10-23T09:14:51+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",ALPHA-02,DTS,18045.0,,2026-10-23T09:14:51+00:00
+predict,"synthetic Vs (Greenberg-Castagna, Vsh from GR index)",ALPHA-01,DTS,16601.0,,2026-10-23T09:14:51+00:00

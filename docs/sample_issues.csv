@@ -1,0 +1,67 @@
+severity,category,message,well,curve,source
+critical,duplicate,"Same physical well as BETA 7 (BETA_2014, UWI NVB07): identical location, TD and trajectory; curves identical 5/6",ALPHA-03,,
+critical,segy,File ends with a partial trace (500 bytes); file is truncated,,,BETA_2014/NOVA_PSTM.segy
+critical,segy,37 of 2576 traces missing (last complete trace IL 1056 XL 2009); re-export from source,,,BETA_2014/NOVA_PSTM.segy
+major,checkshot,1 mis-picked level(s) at depth 1700: the intervals above and below deviate in opposite directions; excluded,BETA 5,,
+major,crs,Coordinate reference system is <Undefined>,ALPHA-01,,ALPHA_2009/ALPHA-01.dev
+major,crs,Coordinate reference system is <Undefined>,ALPHA-02,,ALPHA_2009/ALPHA-02.dev
+major,crs,Coordinate reference system is <Undefined>,ALPHA-03,,ALPHA_2009/ALPHA-03.dev
+major,crs,Coordinate reference system is <Undefined>,ALPHA-04,,ALPHA_2009/ALPHA-04.dev
+major,crs,Coordinate reference system is <Null>,BETA 5,,BETA_2014/BETA 5.dev
+major,crs,Coordinate reference system is <Null>,BETA 6,,BETA_2014/BETA 6.dev
+major,crs,Coordinate reference system is <Null>,BETA 7,,BETA_2014/BETA 7.dev
+major,depth,Deviation survey ends at 3050.0 but header TD is 3032.0 m,ALPHA-02,,
+major,depth,Logs extend 18.0 m below stated TD 3032; TD or depth reference inconsistent,ALPHA-02,,
+major,depth,Logging run BETA 6_run2.las is off depth by +2.44 m relative to BETA 6_run1.las (GR correlation 0.95); shifted before splicing,BETA 6,,BETA 6_run2.las
+major,flatline,Constant value 77.94 from 1000.0 to 1120.0 m (120 m); nulled as fill/filler,ALPHA-01,GR,
+major,naming,Deviation file names the well 'ALPHAA-02' but it was matched to 'ALPHA-02' by similar name,ALPHA-02,,ALPHA-02.dev
+major,naming,Deviation file names the well 'CORE-04' but it was matched to 'ALPHA-04' by wellhead location,ALPHA-04,,ALPHA-04.dev
+major,nulls,25 undeclared null values (e.g. +999.25) set to null,ALPHA-02,DT,
+major,segy,Inline/crossline stored at non-standard bytes 5/21 (TRACE_SEQUENCE_FILE/CDP); bytes 189/193 are empty. Set these byte locations explicitly on load.,,,BETA_2014/NOVA_PSTM.segy
+major,units,NPHI labelled 'm3/m3' but values are in percent (p99 = 51.5); divided by 100,BETA 5,NPHI,
+major,units,NPHI labelled 'm3/m3' but values are in percent (p99 = 52.2); divided by 100,BETA 6,NPHI,
+major,units,NPHI labelled 'm3/m3' but values are in percent (p99 = 51.4); divided by 100,BETA 7,NPHI,
+minor,checkshot,"2 anomalous interval velocities (900-950, 950-1000): thin layer or pick error; verify against sonic",BETA 5,,
+minor,crs,Azimuth reference (true/grid north) undefined,ALPHA-01,,ALPHA_2009/ALPHA-01.dev
+minor,crs,Azimuth reference (true/grid north) undefined,ALPHA-02,,ALPHA_2009/ALPHA-02.dev
+minor,crs,Azimuth reference (true/grid north) undefined,ALPHA-03,,ALPHA_2009/ALPHA-03.dev
+minor,crs,Azimuth reference (true/grid north) undefined,ALPHA-04,,ALPHA_2009/ALPHA-04.dev
+minor,crs,Azimuth reference (true/grid north) undefined,BETA 5,,BETA_2014/BETA 5.dev
+minor,crs,Azimuth reference (true/grid north) undefined,BETA 6,,BETA_2014/BETA 6.dev
+minor,crs,Azimuth reference (true/grid north) undefined,BETA 7,,BETA_2014/BETA 7.dev
+minor,format,Row has 11 values but header defines 8 fields,ALPHA-01,,ALPHA_2009/well_header.txt
+minor,format,Row has 11 values but header defines 8 fields,ALPHA-02,,ALPHA_2009/well_header.txt
+minor,format,Row has 11 values but header defines 8 fields,ALPHA-03,,ALPHA_2009/well_header.txt
+minor,format,Row has 11 values but header defines 8 fields,ALPHA-04,,ALPHA_2009/well_header.txt
+minor,format,"Ambiguous coordinate column names ['Surface', 'Surface.1']; assumed X then Y",,,BETA_2014/well_header.txt
+minor,metadata,LAS header FIELD is empty,ALPHA-01,,ALPHA_2009/ALPHA-01.las
+minor,metadata,LAS header COMPANY is empty,ALPHA-01,,ALPHA_2009/ALPHA-01.las
+minor,metadata,LAS header FIELD is empty,ALPHA-02,,ALPHA_2009/ALPHA-02.las
+minor,metadata,LAS header COMPANY is empty,ALPHA-02,,ALPHA_2009/ALPHA-02.las
+minor,metadata,LAS header FIELD is empty,ALPHA-03,,ALPHA_2009/ALPHA-03.las
+minor,metadata,LAS header COMPANY is empty,ALPHA-03,,ALPHA_2009/ALPHA-03.las
+minor,metadata,LAS header FIELD is empty,ALPHA-04,,ALPHA_2009/ALPHA-04.las
+minor,metadata,LAS header COMPANY is empty,ALPHA-04,,ALPHA_2009/ALPHA-04.las
+minor,metadata,LAS header FIELD is empty,BETA 5,,BETA_2014/BETA 5.las
+minor,metadata,LAS header COMPANY is empty,BETA 5,,BETA_2014/BETA 5.las
+minor,metadata,LAS header FIELD is empty,BETA 6,,BETA_2014/BETA 6_run1.las
+minor,metadata,LAS header COMPANY is empty,BETA 6,,BETA_2014/BETA 6_run1.las
+minor,metadata,LAS header FIELD is empty,BETA 6,,BETA_2014/BETA 6_run2.las
+minor,metadata,LAS header COMPANY is empty,BETA 6,,BETA_2014/BETA 6_run2.las
+minor,metadata,LAS header FIELD is empty,BETA 7,,BETA_2014/BETA 7.las
+minor,metadata,LAS header COMPANY is empty,BETA 7,,BETA_2014/BETA 7.las
+minor,metadata,Header file does not state XY or depth units,,,BETA_2014/well_header.txt
+minor,range,"4 samples outside physical range [1.2, 3.2] set to null",ALPHA-02,RHOB,
+minor,segy,"Coordinates stored in bytes 73/77 (SOURCE_X), not CDP_X/CDP_Y (181/185)",,,BETA_2014/NOVA_PSTM.segy
+minor,spike,37 spikes removed,ALPHA-02,RHOB,
+minor,spike,1 spikes removed,ALPHA-02,RDEEP,
+minor,spike,2 spikes removed,ALPHA-04,RDEEP,
+minor,spike,1 spikes removed,BETA 6,RDEEP,
+minor,units,VSH labelled '%' but values are fractions (p99 = 0.86); label corrected,ALPHA-01,VSH,
+minor,units,VSH labelled '%' but values are fractions (p99 = 0.86); label corrected,ALPHA-02,VSH,
+minor,units,VSH labelled '%' but values are fractions (p99 = 0.86); label corrected,ALPHA-03,VSH,
+minor,units,VSH labelled '%' but values are fractions (p99 = 0.86); label corrected,ALPHA-04,VSH,
+info,format,"Columns ordered TIME, DEPTH; swapped to DEPTH, TWT",BETA 5,,BETA_2014/BETA 5 CS.txt
+info,format,2 logging runs spliced,BETA 6,,
+info,prediction,DT predicted over 25 samples with no measured sonic,ALPHA-02,DT,
+info,prediction,DT predicted over 17061 samples with no measured sonic,ALPHA-04,DT,
