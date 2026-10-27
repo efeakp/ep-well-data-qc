@@ -147,7 +147,7 @@ def condition_well(well: Well, lineage: Lineage, flat_min: float | None = None,
     """
     issues: list[Issue] = []
     out = well.logs.copy()
-    step = float(np.median(np.diff(out.index))) if len(out) > 1 else 0.5
+    step = abs(float(np.median(np.diff(out.index)))) if len(out) > 1 else 0.5
     flat_min = flat_min or (30.0 if well.depth_unit == "m" else 100.0)
     cfg = {"RHOB": dict(min_abs=0.08), "DT": dict(min_abs=8), "NPHI": dict(min_abs=0.06),
            "GR": dict(min_abs=25), "RDEEP": dict(log_scale=True, min_abs=0.4),
@@ -156,6 +156,11 @@ def condition_well(well: Well, lineage: Lineage, flat_min: float | None = None,
     cfg.update(despike_cfg or {})
     for c in out.columns:
         canon = c.split("_ALT")[0]
+        if canon not in PHYSICAL_RANGES:
+            # unrecognised curves (bit size, flags, tool status, computed outputs) are passed through
+            # untouched apart from null handling: conditioning rules only apply to known measurements
+            out[c], _ = fix_nulls(out[c])
+            continue
         s, n = fix_nulls(out[c])
         if n:
             sev = "major" if (s.dropna().size and n > 0) else "minor"
@@ -185,7 +190,7 @@ def condition_well(well: Well, lineage: Lineage, flat_min: float | None = None,
                         int(round((base - top) / step)), top=top, base=base, value=val)
         out[c] = s
     excess = logged_below_td(well)
-    if excess > 2 * step:
+    if excess > 2 * step and well.td is not None:
         issues.append(Issue("major", "depth", f"Logs extend {excess:.1f} {well.depth_unit} below stated TD "
                                               f"{well.td:g}; TD or depth reference inconsistent", well.name))
     return out, issues

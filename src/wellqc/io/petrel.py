@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..model import Issue
+from ..model import Issue, normalise_depth_unit
 
 _UNIT_RE = re.compile(r"#\s*Unit in (X and Y direction|depth):\s*(\w+)", re.I)
 
@@ -44,7 +44,8 @@ def read_well_head(path: str | Path) -> tuple[pd.DataFrame, list[Issue]]:
     issues: list[Issue] = []
     units = {"xy_unit": None, "depth_unit": None}
     for m in _UNIT_RE.finditer(text):
-        units["xy_unit" if m.group(1).lower().startswith("x") else "depth_unit"] = m.group(2).lower()
+        units["xy_unit" if m.group(1).lower().startswith("x") else "depth_unit"] = (
+            normalise_depth_unit(m.group(2)) or m.group(2).lower())
 
     if any(ln.strip().upper() == "BEGIN HEADER" for ln in lines):
         fields, i0 = _parse_header_block(lines)
@@ -130,7 +131,7 @@ def read_deviation(path: str | Path) -> tuple[dict, pd.DataFrame, list[Issue]]:
                 elif k == "WELL KB":
                     meta["kb"] = float(v.split()[0])
                     if "(" in v:
-                        meta["kb_unit"] = v.split("(")[1].rstrip(")").lower()
+                        meta["kb_unit"] = normalise_depth_unit(v.split("(")[1].rstrip(")"))
                 elif k == "WELL TYPE":
                     meta["well_type"] = v
             up = body.upper()
@@ -145,7 +146,7 @@ def read_deviation(path: str | Path) -> tuple[dict, pd.DataFrame, list[Issue]]:
                                     well=meta.get("name"), source=path.name))
             m = re.search(r"DEPTH \(Z, TVD\) GIVEN IN (\w+)-UNITS", up)
             if m:
-                meta["depth_unit"] = m.group(1).lower()
+                meta["depth_unit"] = normalise_depth_unit(m.group(1)) or m.group(1).lower()
             continue
         if not s:
             continue

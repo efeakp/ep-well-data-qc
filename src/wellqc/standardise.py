@@ -9,7 +9,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-from .model import Issue, Lineage, Well
+from .model import Issue, Lineage, Well, normalise_depth_unit
 
 FT_PER_M = 3.280839895
 
@@ -22,11 +22,12 @@ CURVE_ALIASES: dict[str, list[str]] = {
     "NPHI": ["NPHI", "TNPH", "NPOR", "CNC"],
     "DRHO": ["DRHO", "HDRA"],
     "CALI": ["CALI", "CAL", "HCAL", "C1"],
-    "RDEEP": ["ILD", "RILD", "LLD", "RT", "RDEP", "AT90"],
-    "RMED": ["ILM", "LLS", "RILM", "RMED"],
-    "RSHAL": ["MSFL", "SFLU", "SFL", "LLS3", "RXO", "SN"],
+    "RDEEP": ["ILD", "RILD", "LLD", "RT", "RDEP", "RD", "AT90", "HDRS"],
+    "RMED": ["ILM", "LLS", "RILM", "RMED", "RM", "HMRS"],
+    "RSHAL": ["MSFL", "SFLU", "SFL", "LLS3", "RXO", "SN", "RS", "RXOZ"],
     "SP": ["SP"],
     "PHIT": ["PHIT", "PHIE"],
+    "PE": ["PE", "PEF", "PEFZ"],
     "VSH": ["VSH", "VSH_CED", "VCL", "VSHALE"],
     "URAN": ["URAN"],
     "THOR": ["THOR"],
@@ -36,13 +37,13 @@ CURVE_ALIASES: dict[str, list[str]] = {
 
 # Physically plausible ranges in canonical units (values outside are set to null and counted)
 PHYSICAL_RANGES: dict[str, tuple[float, float]] = {
-    "GR": (0, 400), "DT": (40, 200), "DTS": (60, 650), "RHOB": (1.2, 3.2), "NPHI": (-0.15, 1.0),
+    "GR": (0, 400), "PE": (0, 15), "DT": (40, 200), "DTS": (60, 650), "RHOB": (1.2, 3.2), "NPHI": (-0.15, 1.0),
     "DRHO": (-0.5, 0.5), "CALI": (4, 30), "RDEEP": (0.05, 5000), "RMED": (0.05, 5000),
     "RSHAL": (0.05, 5000), "SP": (-300, 300), "PHIT": (0, 0.6), "VSH": (0, 1),
     "URAN": (0, 100), "THOR": (0, 100), "POTA": (0, 10), "SGR": (0, 400),
 }
 
-CANONICAL_UNITS = {"GR": "gAPI", "DT": "us/ft", "DTS": "us/ft", "RHOB": "g/cm3", "NPHI": "v/v",
+CANONICAL_UNITS = {"GR": "gAPI", "PE": "b/e", "DT": "us/ft", "DTS": "us/ft", "RHOB": "g/cm3", "NPHI": "v/v",
                    "DRHO": "g/cm3", "CALI": "in", "RDEEP": "ohm.m", "RMED": "ohm.m", "RSHAL": "ohm.m",
                    "SP": "mV", "PHIT": "v/v", "VSH": "v/v", "URAN": "ppm", "THOR": "ppm", "POTA": "%",
                    "SGR": "gAPI"}
@@ -106,8 +107,12 @@ def standardise_curves(well: Well, lineage: Lineage) -> list[Issue]:
 
 def to_depth_unit(well: Well, target: str, lineage: Lineage) -> None:
     """Convert MD index, KB, TD, trajectory depths and tops to ``target`` ('m' or 'ft')."""
-    src = (well.depth_unit or target).lower()
+    src = normalise_depth_unit(well.depth_unit or target)
+    target = normalise_depth_unit(target)
+    if src is None or target is None:
+        raise ValueError(f"{well.name}: cannot convert depth unit '{well.depth_unit}' to '{target}'")
     if src == target:
+        well.depth_unit = target
         return
     f = 1 / FT_PER_M if (src, target) == ("ft", "m") else FT_PER_M
     if well.logs is not None:

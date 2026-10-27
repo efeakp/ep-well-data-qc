@@ -154,6 +154,13 @@ def predict_curve(wells: dict[str, pd.DataFrame], target: str, features: list[st
     train = {n: d for n, d in wells.items() if target in d and d[target].notna().sum() >= min_samples}
     if len(train) < 2:
         raise ValueError(f"Need at least two wells with {target} for blind-well validation")
+    # keep only features that every training well actually has where the target is measured;
+    # otherwise a held-out well can leave the model with an all-empty input column
+    requested = list(features)
+    features = [f for f in requested
+                if all(f in d and (d[target].notna() & d[f].notna()).sum() >= min_samples for d in train.values())]
+    if len(features) < 2:
+        raise ValueError(f"Fewer than two of {requested} are logged alongside {target} in every training well")
     rows, blind_preds = [], {}
     for blind in train:
         Xs, ys = zip(*(xy(d) for n, d in train.items() if n != blind), strict=True)
@@ -166,7 +173,7 @@ def predict_curve(wells: dict[str, pd.DataFrame], target: str, features: list[st
         pred = m.predict(Xb[okb])
         blind_preds[blind] = pd.Series(pred, index=yb[okb].index, name=f"{target}_BLIND")
         err = pred - yb[okb].to_numpy()
-        rows.append({"blind_well": blind, "n": int(okb.sum()), "rmse": float(np.sqrt(np.mean(err ** 2))),
+        rows.append({"blind_well": blind, "features": "+".join(features), "n": int(okb.sum()), "rmse": float(np.sqrt(np.mean(err ** 2))),
                      "mae": float(np.mean(np.abs(err))),
                      "r2": float(1 - np.sum(err ** 2) / np.sum((yb[okb] - yb[okb].mean()) ** 2))})
     X, y = zip(*(xy(d) for d in train.values()), strict=True)

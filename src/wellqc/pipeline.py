@@ -108,8 +108,12 @@ class Audit:
                 if m is None:
                     w = Well(name=name or Path(source).stem, uwi=uwi, project=proj)
                     pw[w.name] = w
-                    self.issues.append(Issue("major", "naming", f"{kind} well '{name}' not in well header; "
-                                                                "created a new well record", w.name, source=source))
+                    if heads.empty:
+                        self.issues.append(Issue("info", "naming", f"Well record created from {kind} (no well header "
+                                                                   "in project)", w.name, source=source))
+                    else:
+                        self.issues.append(Issue("major", "naming", f"{kind} well '{name}' not in well header; "
+                                                                    "created a new well record", w.name, source=source))
                     return w
                 w = pw[m]
                 if how in ("fuzzy", "location"):
@@ -124,18 +128,20 @@ class Audit:
             runs: dict[str, list[tuple[str, pd.DataFrame]]] = {}
             for f in self._files(proj, "las"):
                 hdr, df, units, iss = read_las(f)
-                w = resolve(hdr["well"], hdr["uwi"], None, f.name, "LAS")
+                lxy = (hdr["x"], hdr["y"]) if hdr.get("x") is not None and hdr.get("y") is not None else None
+                w = resolve(hdr["well"] or f.stem, hdr["uwi"], lxy, f.name, "LAS")
                 self._add(iss, proj, w.name)
-                if hdr["uwi"] and w.uwi and str(hdr["uwi"]) != str(w.uwi):
-                    self.issues.append(Issue("major", "naming", f"LAS UWI '{hdr['uwi']}' differs from header "
-                                                                f"UWI '{w.uwi}'", w.name, source=f.name))
-                runs.setdefault(w.name, []).append((f.name, df))
-                w.units = {**w.units, **units}
                 lu = hdr["depth_unit"]
                 if w.depth_unit and lu and w.depth_unit != lu:
                     self.issues.append(Issue("critical", "units", f"LAS depth unit '{lu}' differs from header "
                                                                   f"'{w.depth_unit}'", w.name, source=f.name))
                 w.depth_unit = w.depth_unit or lu
+                self._fill_from_las(w, hdr, f.name)
+                if hdr["uwi"] and w.uwi and str(hdr["uwi"]) != str(w.uwi):
+                    self.issues.append(Issue("major", "naming", f"LAS UWI '{hdr['uwi']}' differs from header "
+                                                                f"UWI '{w.uwi}'", w.name, source=f.name))
+                runs.setdefault(w.name, []).append((f.name, df))
+                w.units = {**w.units, **units}
                 w.sources.append(f.name)
             for wname, rs in runs.items():
                 pw[wname].logs = self._merge_runs(pw[wname], rs)
@@ -175,6 +181,30 @@ class Audit:
                     self.surfaces.append(g)
             self.wells.extend(pw.values())
         self.lineage.add("read", "load and reconcile files", n_affected=len(self.wells))
+
+    def _fill_from_las(self, w: Well, hdr: dict, source: str) -> None:
+        """Use LAS header location/KB/TD where the well header has none; flag disagreements where it has."""
+        for attr, key, tol in (("x", "x", 2.0), ("y", "y", 2.0), ("kb", "kb", 0.5), ("td", "td", 1.0)):
+            v = hdr.get(key)
+            if v is None or pd.isna(v):
+                continue
+            cur = getattr(w, attr)
+            if cur is None or pd.isna(cur):
+                setattr(w, attr, v)
+                label = {"kb": f"KB ({hdr.get('kb_key')})", "td": f"TD ({hdr.get('td_key')})"}.get(attr, attr.upper())
+                self.lineage.add("read", f"{label} taken from LAS header", w.name, value=round(float(v), 3))
+            elif abs(float(cur) - float(v)) > tol and (hdr.get("depth_unit") == w.depth_unit or attr in ("x", "y")):
+                self.issues.append(Issue("major", "metadata", f"LAS header {attr.upper()} {float(v):g} differs from "
+                                                              f"well header {float(cur):g}", w.name, source=source))
+        if w.x is None and hdr.get("lat") is not None:
+            self.issues.append(Issue("minor", "crs", f"Only geographic coordinates in LAS header (lat {hdr['lat']:.5f}, "
+                                                     f"lon {hdr['lon']:.5f}); projected X/Y needed for spatial checks",
+                                     w.name, source=source))
+        if w.x is None and hdr.get("lat") is None:
+            self.issues.append(Issue("major", "location", "No surface location in any source", w.name, source=source))
+        if w.kb is None:
+            self.issues.append(Issue("major", "datum", "No KB / depth reference elevation in any source; TVDSS assumes "
+                                                       "KB = 0", w.name, source=source))
 
     def _merge_runs(self, w: Well, runs: list[tuple[str, pd.DataFrame]]) -> pd.DataFrame:
         """Depth-match overlapping logging runs on GR, then splice them (shallow run wins in overlaps)."""
@@ -350,7 +380,19 @@ class Audit:
             cur = reps.get(k)
             if cur is None or self.clean_logs[w.name].notna().sum().sum() > self.clean_logs[cur.name].notna().sum().sum():
                 reps[k] = w
-        areas = _cluster([w for w in reps.values() if w.x is not None], area_km * 1000)
+        located = [w for w in reps.values() if w.x is not None and not pd.isna(w.x)]
+        areas = _cluster(located, area_km * 1000)
+        unlocated = [w for w in reps.values() if w not in located]
+        if unlocated:
+            names = ", ".join(w.name for w in unlocated)
+            if len(areas) == 1:
+                areas[0] = areas[0] + unlocated
+                self.issues.append(Issue("info", "prediction", f"Wells without a surface location ({names}) assumed to "
+                                         "be in the same area as the located wells for DT prediction"))
+            else:
+                areas.append(unlocated)
+                self.issues.append(Issue("info", "prediction", f"Wells without a surface location ({names}) grouped "
+                                         "together for DT prediction (assumption: same basin)"))
         vals = []
         for area in areas:
             frames = {}
@@ -489,7 +531,7 @@ class Audit:
         if self.segy or not self.master.empty:
             surveys = [{"name": Path(s.path).stem, "grid": s.grid, "il": s.inline_range, "xl": s.xline_range}
                        for _, s in self.segy if s.grid]
-            for area in _cluster([w for w in self.wells if w.x is not None], 20000):
+            for area in _cluster([w for w in self.wells if w.x is not None and not pd.isna(w.x)], 20000):
                 names = {w.name for w in area}
                 m = self.master[self.master["aliases"].apply(lambda a, names=names: bool(set(a.split(";")) & names))]
                 xs, ys = m.x.to_numpy(float), m.y.to_numpy(float)

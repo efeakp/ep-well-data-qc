@@ -7,6 +7,19 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+_DEPTH_UNITS = {"m": "m", "meter": "m", "meters": "m", "metre": "m", "metres": "m",
+                "ft": "ft", "f": "ft", "feet": "ft", "foot": "ft", "usft": "ft", "ft_us": "ft"}
+
+
+def normalise_depth_unit(unit: str | None) -> str | None:
+    """Map the many spellings of depth units in LAS/Petrel headers ('M', '.F', 'FEET') to 'm' or 'ft'.
+
+    Returns None for blank or unrecognised units, so callers can flag them instead of guessing.
+    """
+    if unit is None:
+        return None
+    return _DEPTH_UNITS.get(str(unit).strip().strip(".").lower())
+
 
 @dataclass
 class Issue:
@@ -63,7 +76,7 @@ class Well:
     y: float | None = None
     kb: float | None = None
     td: float | None = None
-    depth_unit: str = "m"
+    depth_unit: str | None = None
     project: str | None = None
     logs: pd.DataFrame | None = None
     units: dict[str, str] = field(default_factory=dict)
