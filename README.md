@@ -6,7 +6,7 @@
 
 Exploration teams inherit well data from many projects, vintages and contractors. The same well turns up under three names. Units are mislabelled. Logs carry spikes, filler values and undeclared nulls. Seismic files arrive truncated. Before any regional study, all of this has to become **one reliable, standardised dataset**.
 
-`wellqc` is a Python pipeline that does that audit automatically. You point it at legacy project folders (Petrel ASCII exports, LAS, checkshots, SEG-Y). It returns:
+`wellqc` is a Python pipeline that does that audit automatically. You point it at legacy project folders: full Petrel ASCII exports (well heads, deviations, tops, LAS, checkshots, SEG-Y) or just a folder of LAS files. It returns:
 
 - **One master well table**, with one master UWI per physical well and every legacy name and UWI kept as an alias
 - **Conditioned LAS files**: nulls fixed, impossible values removed, spikes and flat-line filler nulled, runs depth-matched and spliced, units standardised
@@ -19,6 +19,8 @@ pip install -e .
 wellqc demo                                   # synthetic dataset -> full audit in ~15 s
 wellqc audit path/to/projectA path/to/projectB --out results/
 ```
+
+See [Installation](#installation) and [Usage](#usage) for step-by-step instructions.
 
 ---
 
@@ -37,6 +39,20 @@ The pipeline was developed against three real legacy Petrel project exports. Tho
 | **Naming conflicts** | 10 deviation files named their well differently from the header: a legacy `CORE-xx` scheme in one project and a one-letter typo of the field name in another. They were matched by wellhead location or fuzzy name and the conflicts logged |
 | **Checkshot problems** | Unlabelled datum, reversed column order, and interval-velocity anomalies separated from 1 ms rounding noise |
 | **Sonic prediction** | Blind-well R² of 0.65–0.78 where the data are consistent. Two wells failed the blind test and were flagged: their sonic or input curves disagree with the rest of the area, which is itself a QC finding |
+
+### A second, very different dataset
+
+The pipeline was then run on a second real dataset: four onshore wells delivered as **LAS files only**, from different operators and logging contractors, with no well header, deviation or tops. That run exposed cases the first dataset didn't have, all now handled and covered by tests:
+
+| Case | How it is handled |
+|---|---|
+| **Logs recorded bottom-up** (negative STEP) in 2 wells | Re-sorted to increasing depth, and logged |
+| **Depth unit written as `.F`** in a DLIS-converted file, with a duplicate depth column in metres | Unit spellings normalised (`F`, `FT`, `FEET`, `M`…). Unrecognised units are refused rather than guessed. The duplicate depth column is dropped |
+| **No well header file** | Location, KB and TD read from each LAS header (`X`/`Y`, `EKB`/`APD`, `TDD`/`TDL`), with the source recorded in the lineage |
+| **Empty `WELL` field** | Well named from the file, and flagged |
+| **Reference curves** (bit size, casing flag) | Recognised as non-measurements and passed through, not nulled as filler |
+| **Only one well has NPHI** | The sonic model uses only the logs every training well shares (here GR, RHOB, TVDSS) and records them. Blind-well R² was 0.77–0.85, with one well flagged at 0.49 |
+| **Three wells without coordinates** | Assumed to be in the same area as the located well for prediction, and the assumption is stated in the issues |
 
 ---
 
@@ -86,18 +102,131 @@ flowchart LR
 
 | Step | Method |
 |---|---|
-| **File discovery** | Files are identified by their content, not their extension. Legacy folders contain `GAM11` with no extension, `.dat` tops and `.txt` headers |
+| **File discovery** | Files are identified by their content, not their extension. Legacy folders contain log files with no extension, `.dat` tops and `.txt` headers |
+| **LAS reading** | Bottom-up files are re-sorted; duplicate depth columns (in m or ft) are dropped; empty curves are removed; location, KB and TD are read from the header so a LAS file can stand in for a missing well header |
 | **Well reconciliation** | Each well is matched in order: exact name, then fuzzy name (same well number, similar root), then UWI, then wellhead location within 2 m. Every non-exact match is logged |
 | **Duplicate detection** | Pairs are compared on surface distance, KB, TD, bottom-hole location and sample-by-sample curve equality. Confirmed duplicates share a master UWI |
-| **Units** | Depths are converted to one basis (m or ft). Percent/fraction scaling is detected from the data, so a wrong label is corrected rather than trusted |
-| **Conditioning** | Undeclared nulls (including `+999.25`) are removed first. Then come curve-specific physical limits, then a rolling-median/MAD despike with a curve-specific floor (log scale for resistivity), then flat-line detection |
+| **Units** | Depth-unit spellings are normalised, then depths are converted to one basis (m or ft); an unrecognised unit stops with a critical issue instead of being guessed. Percent/fraction scaling is detected from the data, so a wrong label is corrected rather than trusted |
+| **Conditioning** | Applied to recognised measurement curves only. Undeclared nulls (including `+999.25`) are removed first. Then come curve-specific physical limits, then a rolling-median/MAD despike with a curve-specific floor (log scale for resistivity), then flat-line detection. Unrecognised curves (bit size, flags, tool status) only have nulls fixed |
 | **Depth matching** | Overlapping runs are aligned on GR by normalised cross-correlation and spliced, with the shallow run taking priority |
-| **Sonic prediction** | Gradient boosting on GR, RHOB, NPHI and TVDSS is trained per spatial area, using one copy of each physical well so duplicates can't leak into validation. Each well is held out in turn (leave-one-well-out) |
+| **Sonic prediction** | Gradient boosting on GR, RHOB, NPHI and TVDSS is trained per spatial area, using one copy of each physical well so duplicates can't leak into validation. Only features that every training well has are used, and they are recorded. Each well is held out in turn (leave-one-well-out); wells that fail the blind test are flagged |
 | **Shear** | Greenberg–Castagna (1992) with sand and shale end members, using Vsh from a GR index |
 | **RPT QC** | Brine-sand (Raymer–Hunt–Gardner + Greenberg–Castagna), gas-sand (Gassmann) and shale (Castagna mudrock + Gardner) trends are plotted in AI vs Vp/Vs. Samples far from every trend are flagged |
 | **Checkshots** | Two opposite interval-velocity deviations either side of one level mark a mis-picked level. A single deviation is reported as "verify" (it may be a thin layer). Scatter within rounding and pick noise is not flagged. A smoothing spline gives the cleaned profile |
 | **SEG-Y** | Raw-byte scan using `numpy.memmap`, so it works on files standard readers refuse. It detects header byte locations, fits the inline/crossline-to-XY grid, compares grids between surveys, and counts truncation and dead traces |
 | **Quality score** | 50 × coverage + 30 × validity + 20 × continuity, per curve |
+
+## Installation
+
+You need Python 3.10 or newer and Git.
+
+**Windows (PowerShell)**
+
+```powershell
+cd $HOME\Documents
+git clone https://github.com/efeakp/ep-well-data-qc
+cd ep-well-data-qc
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e .
+```
+
+If PowerShell refuses to run the activate script, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once and try again. Note the full stop at the end of `pip install -e .`: it means "install from this folder".
+
+**macOS / Linux**
+
+```bash
+git clone https://github.com/efeakp/ep-well-data-qc
+cd ep-well-data-qc
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+In each new terminal session, `cd` into the folder and activate the environment again (`.venv\Scripts\Activate.ps1` or `source .venv/bin/activate`). Your prompt shows `(.venv)` when it is active.
+
+Check the install with `wellqc demo`. It should end with *"20 files, 6 physical wells (7 well records)…"*.
+
+## Usage
+
+### 1. Organise your folders
+
+Each folder you pass is treated as **one legacy project** (one vintage, contractor or source). Files are found in subfolders too.
+
+```
+MyField\
+├── Project_2009\     <- pass this
+│   ├── logs\...
+│   ├── deviation\...
+│   └── well_header.txt
+└── Project_2015\     <- and this, separately
+```
+
+Pass vintages separately rather than their parent folder: the cross-project duplicate check works best when projects are kept apart. A single folder, including a folder of LAS files only, is fine.
+
+### 2. Run the audit
+
+```powershell
+wellqc audit "C:\Data\MyField\Project_2009" "C:\Data\MyField\Project_2015" --out "C:\Data\MyField_results"
+```
+
+Quote paths that contain spaces or `&`.
+
+| Option | Effect |
+|---|---|
+| `--out DIR` | Where results are written (default `wellqc_results`) |
+| `--depth-unit ft` | Write everything in feet (default metres) |
+| `--uwi-prefix ORK` | Prefix for master UWIs (default `W0001`, `W0002`…) |
+| `--no-predict` | Skip DT/Vs prediction (faster first look) |
+| `--no-figures` | Skip charts |
+
+Source files are never modified; everything is written to the output folder.
+
+### 3. Supported inputs
+
+File type is detected from the content, so names and extensions don't matter.
+
+| Type | Recognised by |
+|---|---|
+| Logs | LAS 2.0, top-down or bottom-up, in m or ft |
+| Well header | Petrel well-head export, or a tab-separated table whose first line starts `Name … UWI` (columns Name, UWI, X, Y, KB, TD). Optional: LAS headers are used if there is none |
+| Deviation | Petrel "WELL TRACE FROM PETREL" export |
+| Well tops | Petrel well-tops export |
+| Checkshot | Two-column text whose header mentions TWT, time or checkshot |
+| Seismic | SEG-Y (header scan and QC) |
+| Surfaces / faults | Petrel ASCII grids and fault sticks (inventoried) |
+
+Not yet supported: DLIS/LIS, Excel headers, CSV deviation surveys, PDFs and raster logs. Convert these first (e.g. DLIS to LAS in Techlog).
+
+### 4. Read the results
+
+Start with `inventory.csv` to confirm every file was recognised (anything marked `unknown` was skipped). Then:
+
+1. `audit_report.md`: the overview, with figures
+2. `issues.csv`: the work list; filter by `severity`, then `well`
+3. `well_master.csv`: one row per physical well; check the aliases and merges
+4. `las\`: conditioned LAS per physical well, with `DT_PRED` and `DTS_SYN`
+5. `lineage.csv`: what was changed, where, and how many samples
+
+### 5. Adapt to your data
+
+- **Other curve mnemonics**: add them to `CURVE_ALIASES` in `src/wellqc/standardise.py`.
+- **Other plausible ranges** (e.g. carbonates): edit `PHYSICAL_RANGES` in the same file.
+
+### From Python or Jupyter
+
+```python
+from wellqc.pipeline import run_audit
+
+a = run_audit({"Project_2009": r"C:\Data\MyField\Project_2009",
+               "Project_2015": r"C:\Data\MyField\Project_2015"},
+              out_dir=r"C:\Data\MyField_results")
+
+a.master                  # well master table (pandas DataFrame)
+a.clean_logs["WELL-01"]   # conditioned logs for one well
+a.raw_logs["WELL-01"]     # the same well before conditioning
+a.validation              # blind-well test results
+```
 
 ## Where this fits in a Petrel / Techlog / Studio workflow
 
@@ -146,7 +275,8 @@ src/wellqc/
 
 ## Limitations and next steps
 
-- **CRS:** the audit flags undefined coordinate systems but does not reproject. Once the EPSG code is known, transforms belong in `pyproj`.
+- **CRS:** the audit flags undefined coordinate systems but does not reproject. Once the EPSG code is known, transforms belong in `pyproj`. Wells with only latitude/longitude are flagged rather than projected.
+- **Wells without a location** are assumed to belong to the single located area (or to one shared group if there are several areas) for sonic prediction. The assumption is logged, but check it.
 - **Formats:** LIS/DLIS (via `dlisio`) and raster-log digitisation are not yet supported.
 - **Sonic prediction:** the model is deliberately simple and area-local. Adding uncertainty bands (quantile regression) and facies-aware features would be the next step.
 - **Rock physics template:** it uses generic end members. In production it should be calibrated per basin, for example against measured DTS.
@@ -154,6 +284,15 @@ src/wellqc/
 ## References
 
 Castagna, Batzle & Eastwood (1985), *Geophysics* 50(4) · Gardner, Gardner & Gregory (1974), *Geophysics* 39(6) · Greenberg & Castagna (1992), *Geophysical Prospecting* 40 · Gassmann (1951) · Raymer, Hunt & Gardner (1980), SPWLA · Ødegaard & Avseth (2004), *First Break* 22.
+
+## Development
+
+```
+pip install -e ".[dev]"
+pytest              # 29 tests: synthetic field, LAS-only project, and unit tests
+ruff check src tests
+python examples/run_demo.py   # regenerate README figures and docs/sample_report.md
+```
 
 ## Licence
 
